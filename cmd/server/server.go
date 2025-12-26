@@ -27,6 +27,10 @@ var (
 func main() {
 	fmt.Println("Запуск мессенджера...")
 
+	// Получаем IP адреса машины
+	printNetworkInfo()
+
+	// Слушаем на всех интерфейсах: ":8080" или "0.0.0.0:8080"
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Printf("Ошибка запуска сервера: %v\n", err)
@@ -34,7 +38,11 @@ func main() {
 	}
 	defer listener.Close()
 
-	fmt.Println("Сервер запущен на порту 8080")
+	// Получаем адрес, на котором запущен сервер
+	addr := listener.Addr().(*net.TCPAddr)
+	fmt.Printf("Сервер запущен на %s:%d\n", getLocalIP(), addr.Port)
+	fmt.Printf("Другие компьютеры могут подключиться по адресу: %s:%d\n", getPublicIP(), addr.Port)
+	fmt.Println("Для подключения используйте команду: go run client.go <ваш_ip>:8080")
 
 	// Горутина для рассылки сообщений всем клиентам
 	go broadcastMessages()
@@ -46,12 +54,64 @@ func main() {
 			continue
 		}
 
+		// Получаем информацию о подключившемся клиенте
+		remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
+		fmt.Printf("Новое подключение от %s\n", remoteAddr.IP)
+
 		go handleConnection(conn)
 	}
 }
 
+func printNetworkInfo() {
+	// Получаем все сетевые интерфейсы
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		fmt.Println("Не удалось получить сетевые интерфейсы:", err)
+		return
+	}
+
+	fmt.Println("Доступные сетевые интерфейсы:")
+	for _, iface := range interfaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+				fmt.Printf("  - %s: %s\n", iface.Name, ipNet.IP)
+			}
+		}
+	}
+}
+
+func getLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "localhost"
+	}
+
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+			return ipNet.IP.String()
+		}
+	}
+	return "localhost"
+}
+
+func getPublicIP() string {
+	// Можно реализовать получение публичного IP через внешний сервис
+	// Но для простоты покажем, как получить локальный IP
+	return getLocalIP()
+}
+
 func handleConnection(conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		conn.Close()
+		fmt.Printf("Соединение закрыто: %s\n", conn.RemoteAddr())
+	}()
 
 	// Запрос ника
 	conn.Write([]byte("Введите ваш ник: "))
@@ -82,7 +142,8 @@ func handleConnection(conn net.Conn) {
 	// Уведомляем всех о новом участнике
 	messages <- fmt.Sprintf("%s присоединился к чату!", nickname)
 
-	fmt.Printf("Новый клиент: %s\n", nickname)
+	remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
+	fmt.Printf("Новый клиент: %s (IP: %s)\n", nickname, remoteAddr.IP)
 
 	// Обработка сообщений от клиента
 	for {

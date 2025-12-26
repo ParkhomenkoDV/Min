@@ -13,23 +13,37 @@ import (
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Использование: go run client.go <сервер:порт>")
-		fmt.Println("Пример: go run client.go localhost:8080")
+		fmt.Println("Пример: go run client.go 192.168.1.100:8080")
+		fmt.Println("\nЕсли сервер на этом же компьютере:")
+		fmt.Println("  go run client.go localhost:8080")
+		fmt.Println("  go run client.go 127.0.0.1:8080")
 		return
 	}
 
 	serverAddr := os.Args[1]
+
+	// Проверяем формат адреса
+	if !strings.Contains(serverAddr, ":") {
+		serverAddr = serverAddr + ":8080"
+		fmt.Printf("Порт не указан, используем стандартный: %s\n", serverAddr)
+	}
 
 	fmt.Printf("Подключение к %s...\n", serverAddr)
 
 	conn, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		fmt.Printf("Ошибка подключения: %v\n", err)
+		fmt.Println("\nВозможные причины:")
+		fmt.Println("1. Сервер не запущен")
+		fmt.Println("2. Неправильный IP адрес")
+		fmt.Println("3. Фаервол блокирует соединение")
+		fmt.Println("4. Сервер слушает на другом порту")
 		return
 	}
 	defer conn.Close()
 
-	fmt.Println("Подключено успешно!")
-	fmt.Println("Для выхода нажмите Ctrl+C")
+	fmt.Println("✓ Подключено успешно!")
+	fmt.Println("✓ Для выхода нажмите Ctrl+C или введите /quit")
 
 	// Канал для завершения
 	done := make(chan bool)
@@ -40,7 +54,7 @@ func main() {
 		for {
 			msg, err := reader.ReadString('\n')
 			if err != nil {
-				fmt.Println("\nСоединение прервано")
+				fmt.Println("\n✗ Соединение прервано")
 				done <- true
 				return
 			}
@@ -82,6 +96,7 @@ func main() {
 
 	select {
 	case <-done:
+		fmt.Println("Завершение работы...")
 	case <-sigCh:
 		fmt.Println("\nВыход...")
 		fmt.Fprintf(conn, "/quit\n")
