@@ -2,6 +2,7 @@ package main
 
 import (
 	co "Min/pkg/constants"
+	"Min/pkg/utils"
 	"bufio"
 	"fmt"
 	"net"
@@ -40,7 +41,7 @@ func main() {
 
 	// Получаем адрес, на котором запущен сервер
 	addr := listener.Addr().(*net.TCPAddr)
-	fmt.Printf("Сервер запущен на %s:%d\n", getLocalIP(), addr.Port)
+	fmt.Printf("Сервер запущен на %s:%d\n", utils.GetLocalIP(), addr.Port)
 	fmt.Printf("Другие компьютеры могут подключиться по адресу: %s:%d\n", getPublicIP(), addr.Port)
 	fmt.Println("Для подключения используйте команду: go run client.go <ваш_ip>:8080")
 
@@ -80,31 +81,16 @@ func printNetworkInfo() {
 		for _, addr := range addrs {
 			ipNet, ok := addr.(*net.IPNet)
 			if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-				fmt.Printf("  - %s: %s\n", iface.Name, ipNet.IP)
+				fmt.Printf("    - %s: %s\n", iface.Name, ipNet.IP)
 			}
 		}
 	}
 }
 
-func getLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return "localhost"
-	}
-
-	for _, addr := range addrs {
-		ipNet, ok := addr.(*net.IPNet)
-		if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-			return ipNet.IP.String()
-		}
-	}
-	return "localhost"
-}
-
 func getPublicIP() string {
-	// Можно реализовать получение публичного IP через внешний сервис
-	// Но для простоты покажем, как получить локальный IP
-	return getLocalIP()
+	// TODO: Нужно реализовать получение публичного IP через внешний сервис
+	// Но пока локальный IP
+	return utils.GetLocalIP()
 }
 
 func handleConnection(conn net.Conn) {
@@ -230,12 +216,12 @@ func broadcastMessages() {
 	for msg := range messages {
 		clientsLock.RLock()
 
-		// Для отладки на сервере
+		// TODO: add logger Для отладки на сервере
 		fmt.Printf("Сообщение: %s\n", msg)
 
 		// Отправляем сообщение всем клиентам
 		for client := range clients {
-			// Можно добавить логику для комнат
+			// TODO добавить логику для комнат
 			// if client.room == room { ... }
 
 			_, err := client.conn.Write([]byte(msg + "\n"))

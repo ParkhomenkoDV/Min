@@ -13,10 +13,7 @@ import (
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Использование: go run client.go <сервер:порт>")
-		fmt.Println("Пример: go run client.go 192.168.1.100:8080")
-		fmt.Println("\nЕсли сервер на этом же компьютере:")
-		fmt.Println("  go run client.go localhost:8080")
-		fmt.Println("  go run client.go 127.0.0.1:8080")
+		fmt.Println("Пример:        go run client.go 192.168.1.100:8080")
 		return
 	}
 
