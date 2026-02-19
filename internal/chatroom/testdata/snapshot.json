@@ -1,0 +1,86 @@
+[
+  {
+    "id": 0,
+    "from": "system",
+    "content": "*** Alice joined the chat ***\n",
+    "timestamp": "2026-02-19T19:23:32.486629+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 1,
+    "from": "system",
+    "content": "*** Bob joined the chat ***\n",
+    "timestamp": "2026-02-19T19:23:32.491733+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 2,
+    "from": "Alice",
+    "content": "Hello!",
+    "timestamp": "2026-02-19T19:23:32.59288+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 3,
+    "from": "system",
+    "content": "*** Alice joined the chat ***\n",
+    "timestamp": "2026-02-19T19:24:30.877009+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 4,
+    "from": "system",
+    "content": "*** Bob joined the chat ***\n",
+    "timestamp": "2026-02-19T19:24:30.885341+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 5,
+    "from": "Alice",
+    "content": "Hello!",
+    "timestamp": "2026-02-19T19:24:30.986466+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 6,
+    "from": "system",
+    "content": "*** Alice joined the chat ***\n",
+    "timestamp": "2026-02-19T19:24:37.627053+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 7,
+    "from": "system",
+    "content": "*** Bob joined the chat ***\n",
+    "timestamp": "2026-02-19T19:24:37.633285+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 8,
+    "from": "Alice",
+    "content": "Hello!",
+    "timestamp": "2026-02-19T19:24:37.734403+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 9,
+    "from": "system",
+    "content": "*** Alice joined the chat ***\n",
+    "timestamp": "2026-02-19T19:24:39.572355+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 10,
+    "from": "system",
+    "content": "*** Bob joined the chat ***\n",
+    "timestamp": "2026-02-19T19:24:39.579517+03:00",
+    "channel": "global"
+  },
+  {
+    "id": 11,
+    "from": "Alice",
+    "content": "Hello!",
+    "timestamp": "2026-02-19T19:24:39.680659+03:00",
+    "channel": "global"
+  }
+]

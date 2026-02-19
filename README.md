@@ -4,10 +4,6 @@
 
 ## Usage
 
-0. Определение IP
-```bash
-go run ip.go
-```
 
 1. Запуск сервера
 ```bash
@@ -27,3 +23,4 @@ go run server.go
 ```bash
 go run client.go 192.168.1.100:8080
 ```
+
