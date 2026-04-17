@@ -2,25 +2,34 @@
 
 ![](./assets/images/min.jpg)
 
-## Usage
 
+## Build
+
+Создаем бинарные файлы:
+```bash
+go build cmd/server/server.go
+go build cmd/client/client.go
+```
+Даем бинарникам права на клик:
+```bash
+chmod +x server
+chmod +x client
+```
+
+
+## Usage
 
 1. Запуск сервера
 ```bash
-go run server.go
-```
-Сервер покажет все доступные IP адреса:
-```
-Запуск мессенджера...
-Доступные сетевые интерфейсы:
-  - eth0: 192.168.1.100
-  - wlan0: 192.168.1.101
-Сервер запущен на 192.168.1.100:8080
-Другие компьютеры могут подключиться по адресу: 192.168.1.100:8080
+go run cmd/server/server.go
 ```
 
 2. Подключение клиента
 ```bash
-go run client.go 192.168.1.100:8080
+go run cmd/client/client.go
 ```
 
+
+## About
+
+thanks: https://github.com/Caesarsage/distributed-system/tree/main/chatroom-with-broadcast
