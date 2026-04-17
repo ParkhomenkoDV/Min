@@ -5,6 +5,11 @@ YELLOW = \033[0;33m
 BLUE   = \033[0;34m
 RESET  = \033[0m
 
+build:
+	@echo "$(BLUE)Building server...$(RESET)"
+	go build -o server cmd/server/server.go
+	@echo "$(BLUE)Building client...$(RESET)"
+	go build -o client cmd/client/client.go
 
 server:
 	@echo "$(BLUE)Running server...$(RESET)"
@@ -16,3 +21,5 @@ client:
 
 clean:
 	@echo "$(BLUE)Cleaning...$(RESET)"
+	find ./data -type f -name "*.wal" -delete
+	find ./data -type f -name "*.json" -delete
