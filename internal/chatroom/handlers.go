@@ -122,9 +122,9 @@ func (cr *ChatRoom) sendUserList(client *client.Client) {
 	}
 }
 
-func (cr *ChatRoom) handleDirectMessage(dm DirectMessage) {
+func (cr *ChatRoom) handleDirectMessage(dm message.DirectMessage) {
 	select {
-	case dm.ToClient.Outgoing <- dm.message:
+	case dm.ToClient.Outgoing <- dm.Message:
 		dm.ToClient.Mu.Lock()
 		dm.ToClient.MessagesSent++
 		dm.ToClient.Mu.Unlock()

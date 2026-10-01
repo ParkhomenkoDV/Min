@@ -16,7 +16,7 @@ type ChatRoom struct {
 	leave         chan *client.Client
 	broadcast     chan string
 	listUsers     chan *client.Client
-	directMessage chan DirectMessage
+	directMessage chan message.DirectMessage
 
 	// State
 	clients       map[*client.Client]bool
@@ -47,12 +47,6 @@ type SessionInfo struct {
 	CreatedAt      time.Time
 }
 
-// DirectMessage represents a private message
-type DirectMessage struct {
-	ToClient *client.Client
-	message  string
-}
-
 func New(dataDir string) (*ChatRoom, error) {
 	cr := &ChatRoom{
 		clients:       make(map[*client.Client]bool),
@@ -60,7 +54,7 @@ func New(dataDir string) (*ChatRoom, error) {
 		leave:         make(chan *client.Client),
 		broadcast:     make(chan string),
 		listUsers:     make(chan *client.Client),
-		directMessage: make(chan DirectMessage),
+		directMessage: make(chan message.DirectMessage),
 		sessions:      make(map[string]*SessionInfo),
 		messages:      make([]message.Message, 0),
 		startTime:     time.Now(),
