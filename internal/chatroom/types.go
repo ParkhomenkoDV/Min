@@ -24,7 +24,6 @@ type Client struct {
 	lastActive   time.Time   // For idle detection
 	messagesSent int         // Statistics
 	messagesRecv int
-	isSlowClient bool // Testing flag
 
 	reconnectToken string
 	mu             sync.Mutex // Protects stats fields

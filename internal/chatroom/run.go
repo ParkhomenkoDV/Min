@@ -80,7 +80,7 @@ func (cr *ChatRoom) Run() {
 	}
 }
 
-func runServer() {
+func StartServer() {
 	chatRoom, err := NewChatRoom("./data")
 	if err != nil {
 		fmt.Printf("Failed to initialize: %v\n", err)

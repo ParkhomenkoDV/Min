@@ -98,7 +98,6 @@ func handleClient(conn net.Conn, chatRoom *ChatRoom) {
 		outgoing:       make(chan string, 10), // Buffered
 		lastActive:     time.Now(),
 		reconnectToken: reconnectToken,
-		isSlowClient:   rand.Float64() < 0.1, // 10% chance for testing
 	}
 
 	// Clear timeout for normal operation
@@ -141,7 +140,6 @@ func handleCommand(client *Client, chatRoom *ChatRoom, command string) {
 	switch parts[0] {
 	case "/users":
 		chatRoom.listUsers <- client
-
 	case "/stats":
 		client.mu.Lock()
 		stats := "Your Stats:\n"
@@ -155,7 +153,6 @@ func handleCommand(client *Client, chatRoom *ChatRoom, command string) {
 		case client.outgoing <- stats:
 		default:
 		}
-
 	case "/msg":
 		if len(parts) < 3 {
 			select {
@@ -192,7 +189,6 @@ func handleCommand(client *Client, chatRoom *ChatRoom, command string) {
 		case client.outgoing <- fmt.Sprintf("Message sent to %s\n", targetUsername):
 		default:
 		}
-
 	case "/history":
 		count := 20
 		if len(parts) > 1 {
@@ -202,7 +198,6 @@ func handleCommand(client *Client, chatRoom *ChatRoom, command string) {
 			count = 100
 		}
 		chatRoom.sendHistory(client, count)
-
 	case "/token":
 		chatRoom.sessionsMu.Lock()
 		session := chatRoom.sessions[client.username]
@@ -216,7 +211,6 @@ func handleCommand(client *Client, chatRoom *ChatRoom, command string) {
 			default:
 			}
 		}
-
 	case "/quit":
 		announcement := fmt.Sprintf("%s left the chat\n", client.username)
 		chatRoom.broadcast <- announcement
@@ -228,7 +222,6 @@ func handleCommand(client *Client, chatRoom *ChatRoom, command string) {
 
 		time.Sleep(100 * time.Millisecond)
 		client.conn.Close()
-
 	default:
 		select {
 		case client.outgoing <- fmt.Sprintf("Unknown: %s\n", parts[0]):
@@ -247,11 +240,6 @@ func writeMessages(client *Client) {
 	writer := bufio.NewWriter(client.conn)
 
 	for message := range client.outgoing {
-		// Simulate slow client (testing mode)
-		if client.isSlowClient {
-			time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
-		}
-
 		_, err := writer.WriteString(message)
 		if err != nil {
 			fmt.Printf("Write error for %s: %v\n", client.username, err)
