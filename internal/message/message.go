@@ -1,7 +1,6 @@
 package message
 
 import (
-	"Min/internal/client"
 	"time"
 )
 
@@ -11,11 +10,4 @@ type Message struct {
 	From      string    `json:"from"`
 	Content   string    `json:"content"`
 	Timestamp time.Time `json:"timestamp"`
-	Channel   string    `json:"channel"` // "global" or "private:username"
-}
-
-// DirectMessage represents a private message
-type DirectMessage struct {
-	ToClient *client.Client
-	Message  string
 }

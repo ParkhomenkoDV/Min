@@ -122,17 +122,6 @@ func (cr *ChatRoom) sendUserList(client *client.Client) {
 	}
 }
 
-func (cr *ChatRoom) handleDirectMessage(dm message.DirectMessage) {
-	select {
-	case dm.ToClient.Outgoing <- dm.Message:
-		dm.ToClient.Mu.Lock()
-		dm.ToClient.MessagesSent++
-		dm.ToClient.Mu.Unlock()
-	default:
-		fmt.Printf("Couldn't deliver DM to %s\n", dm.ToClient.Name)
-	}
-}
-
 func (cr *ChatRoom) FindClientByUsername(username string) *client.Client {
 	cr.mu.Lock()
 	defer cr.mu.Unlock()
@@ -178,7 +167,6 @@ func (cr *ChatRoom) handleBroadcast(sms string) {
 		From:      from,
 		Content:   actualContent,
 		Timestamp: time.Now(),
-		Channel:   "global",
 	}
 	cr.nextMessageID++
 	cr.messages = append(cr.messages, msg)

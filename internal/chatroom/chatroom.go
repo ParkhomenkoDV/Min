@@ -12,11 +12,10 @@ import (
 // ChatRoom is the central coordinator
 type ChatRoom struct {
 	// Communication channels
-	join          chan *client.Client
-	leave         chan *client.Client
-	broadcast     chan string
-	listUsers     chan *client.Client
-	directMessage chan message.DirectMessage
+	join      chan *client.Client
+	leave     chan *client.Client
+	broadcast chan string
+	listUsers chan *client.Client
 
 	// State
 	clients       map[*client.Client]bool
@@ -49,16 +48,15 @@ type SessionInfo struct {
 
 func New(dataDir string) (*ChatRoom, error) {
 	cr := &ChatRoom{
-		clients:       make(map[*client.Client]bool),
-		join:          make(chan *client.Client),
-		leave:         make(chan *client.Client),
-		broadcast:     make(chan string),
-		listUsers:     make(chan *client.Client),
-		directMessage: make(chan message.DirectMessage),
-		sessions:      make(map[string]*SessionInfo),
-		messages:      make([]message.Message, 0),
-		startTime:     time.Now(),
-		dataDir:       dataDir,
+		clients:   make(map[*client.Client]bool),
+		join:      make(chan *client.Client),
+		leave:     make(chan *client.Client),
+		broadcast: make(chan string),
+		listUsers: make(chan *client.Client),
+		sessions:  make(map[string]*SessionInfo),
+		messages:  make([]message.Message, 0),
+		startTime: time.Now(),
+		dataDir:   dataDir,
 	}
 
 	// Restore from snapshot if available
@@ -102,18 +100,12 @@ func (cr *ChatRoom) Run() {
 		select {
 		case client := <-cr.join:
 			cr.handleJoin(client)
-
 		case client := <-cr.leave:
 			cr.handleLeave(client)
-
 		case message := <-cr.broadcast:
 			cr.handleBroadcast(message)
-
 		case client := <-cr.listUsers:
 			cr.sendUserList(client)
-
-		case dm := <-cr.directMessage:
-			cr.handleDirectMessage(dm)
 		}
 	}
 }
