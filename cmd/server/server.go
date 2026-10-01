@@ -1,13 +1,13 @@
 package main
 
 import (
-	"Min/internal/chatroom"
+	"Min/internal/server"
 	"fmt"
 	"os"
 )
 
 func main() {
 	fmt.Println("Starting server from cmd/server...")
-	chatroom.StartServer()
+	server.Start(":9000")
 	os.Exit(0)
 }

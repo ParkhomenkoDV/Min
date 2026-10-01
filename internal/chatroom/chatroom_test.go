@@ -1,25 +1,26 @@
 package chatroom
 
 import (
+	"Min/internal/client"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestBroadcast(t *testing.T) {
-	cr, _ := NewChatRoom("./testdata")
-	defer cr.shutdown()
+	cr, _ := New("./testdata")
+	defer cr.Shutdown()
 
 	go cr.Run()
 
 	// Create mock clients
-	client1 := &Client{
-		username: "Alice",
-		outgoing: make(chan string, 10),
+	client1 := &client.Client{
+		Name:     "Alice",
+		Outgoing: make(chan string, 10),
 	}
-	client2 := &Client{
-		username: "Bob",
-		outgoing: make(chan string, 10),
+	client2 := &client.Client{
+		Name:     "Bob",
+		Outgoing: make(chan string, 10),
 	}
 
 	// Join clients
@@ -32,7 +33,7 @@ func TestBroadcast(t *testing.T) {
 
 	// Verify both receive it
 	select {
-	case msg := <-client1.outgoing:
+	case msg := <-client1.Outgoing:
 		if !strings.Contains(msg, "Hello!") {
 			t.Fatal("Client1 didn't receive correct message")
 		}
@@ -41,7 +42,7 @@ func TestBroadcast(t *testing.T) {
 	}
 
 	select {
-	case msg := <-client2.outgoing:
+	case msg := <-client2.Outgoing:
 		if !strings.Contains(msg, "Hello!") {
 			t.Fatal("Client2 didn't receive correct message")
 		}

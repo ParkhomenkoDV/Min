@@ -1,11 +1,11 @@
 package main
 
 import (
-	"Min/internal/chatroom"
+	"Min/internal/client"
 	"fmt"
 )
 
 func main() {
 	fmt.Println("Starting client from cmd/client...")
-	chatroom.StartClient()
+	client.Start(":9000")
 }

@@ -1,6 +1,7 @@
 package chatroom
 
 import (
+	"Min/internal/client"
 	token "Min/pkg"
 	"fmt"
 	"time"
@@ -58,12 +59,12 @@ func (cr *ChatRoom) updateSessionActivity(username string) {
 	}
 }
 
-func (cr *ChatRoom) isUsernameConnected(username string) bool {
+func (cr *ChatRoom) IsUsernameConnected(name string) bool {
 	cr.mu.Lock()
 	defer cr.mu.Unlock()
 
 	for client := range cr.clients {
-		if client.username == username {
+		if client.Name == name {
 			return true
 		}
 	}
@@ -77,11 +78,11 @@ func (cr *ChatRoom) cleanupInactiveClients() {
 
 	for range ticker.C {
 		cr.mu.Lock()
-		var toRemove []*Client
+		var toRemove []*client.Client
 
 		for client := range cr.clients {
-			if client.isInactive(5 * time.Minute) {
-				fmt.Printf("Removing inactive: %s\n", client.username)
+			if client.IsInactive(5 * time.Minute) {
+				fmt.Printf("Removing inactive: %s\n", client.Name)
 				toRemove = append(toRemove, client)
 			}
 		}

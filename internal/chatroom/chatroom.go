@@ -1,21 +1,73 @@
 package chatroom
 
 import (
+	"Min/internal/client"
 	"fmt"
-	"net"
 	"os"
-	"os/signal"
-	"syscall"
+	"sync"
 	"time"
 )
 
-func NewChatRoom(dataDir string) (*ChatRoom, error) {
+// Message represents a single chat message with metadata
+type Message struct {
+	ID        uint      `json:"id"`
+	From      string    `json:"from"`
+	Content   string    `json:"content"`
+	Timestamp time.Time `json:"timestamp"`
+	Channel   string    `json:"channel"` // "global" or "private:username"
+}
+
+// ChatRoom is the central coordinator
+type ChatRoom struct {
+	// Communication channels
+	join          chan *client.Client
+	leave         chan *client.Client
+	broadcast     chan string
+	listUsers     chan *client.Client
+	directMessage chan DirectMessage
+
+	// State
+	clients       map[*client.Client]bool
+	mu            sync.Mutex
+	totalMessages int
+	startTime     time.Time
+
+	// Message history
+	messages      []Message
+	messageMu     sync.Mutex
+	nextMessageID uint
+
+	// Persistence
+	walFile *os.File
+	walMu   sync.Mutex
+	dataDir string
+
+	// Sessions
+	sessions   map[string]*SessionInfo
+	sessionsMu sync.Mutex
+}
+
+// SessionInfo tracks reconnection data
+type SessionInfo struct {
+	Username       string
+	ReconnectToken string
+	LastSeen       time.Time
+	CreatedAt      time.Time
+}
+
+// DirectMessage represents a private message
+type DirectMessage struct {
+	ToClient *client.Client
+	message  string
+}
+
+func New(dataDir string) (*ChatRoom, error) {
 	cr := &ChatRoom{
-		clients:       make(map[*Client]bool),
-		join:          make(chan *Client),
-		leave:         make(chan *Client),
+		clients:       make(map[*client.Client]bool),
+		join:          make(chan *client.Client),
+		leave:         make(chan *client.Client),
 		broadcast:     make(chan string),
-		listUsers:     make(chan *Client),
+		listUsers:     make(chan *client.Client),
 		directMessage: make(chan DirectMessage),
 		sessions:      make(map[string]*SessionInfo),
 		messages:      make([]Message, 0),
@@ -80,48 +132,7 @@ func (cr *ChatRoom) Run() {
 	}
 }
 
-func StartServer() {
-	chatRoom, err := NewChatRoom("./data")
-	if err != nil {
-		fmt.Printf("Failed to initialize: %v\n", err)
-		return
-	}
-	defer chatRoom.shutdown()
-
-	// Set up signal handling for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-sigChan
-		fmt.Println("\nReceived shutdown signal")
-		chatRoom.shutdown()
-		os.Exit(0)
-	}()
-
-	go chatRoom.Run()
-
-	listener, err := net.Listen("tcp", ":9000")
-	if err != nil {
-		fmt.Println("Error starting server:", err)
-		return
-	}
-	defer listener.Close()
-
-	fmt.Println("Server started on :9000")
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
-		}
-		fmt.Println("New connection from:", conn.RemoteAddr())
-		go handleClient(conn, chatRoom)
-	}
-}
-
-func (cr *ChatRoom) shutdown() {
+func (cr *ChatRoom) Shutdown() {
 	fmt.Println("\nShutting down...")
 	if err := cr.createSnapshot(); err != nil {
 		fmt.Printf("Final snapshot failed: %v\n", err)
