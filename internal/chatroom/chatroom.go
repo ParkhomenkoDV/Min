@@ -2,20 +2,12 @@ package chatroom
 
 import (
 	"Min/internal/client"
+	"Min/internal/message"
 	"fmt"
 	"os"
 	"sync"
 	"time"
 )
-
-// Message represents a single chat message with metadata
-type Message struct {
-	ID        uint      `json:"id"`
-	From      string    `json:"from"`
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
-	Channel   string    `json:"channel"` // "global" or "private:username"
-}
 
 // ChatRoom is the central coordinator
 type ChatRoom struct {
@@ -33,9 +25,9 @@ type ChatRoom struct {
 	startTime     time.Time
 
 	// Message history
-	messages      []Message
+	messages      []message.Message
 	messageMu     sync.Mutex
-	nextMessageID uint
+	nextMessageID uint64
 
 	// Persistence
 	walFile *os.File
@@ -70,7 +62,7 @@ func New(dataDir string) (*ChatRoom, error) {
 		listUsers:     make(chan *client.Client),
 		directMessage: make(chan DirectMessage),
 		sessions:      make(map[string]*SessionInfo),
-		messages:      make([]Message, 0),
+		messages:      make([]message.Message, 0),
 		startTime:     time.Now(),
 		dataDir:       dataDir,
 	}

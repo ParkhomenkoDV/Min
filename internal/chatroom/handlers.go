@@ -2,6 +2,7 @@ package chatroom
 
 import (
 	"Min/internal/client"
+	"Min/internal/message"
 	"bufio"
 	"fmt"
 	"net"
@@ -159,11 +160,11 @@ func (cr *ChatRoom) handleJoin(client *client.Client) {
 	cr.handleBroadcast(announcement)
 }
 
-func (cr *ChatRoom) handleBroadcast(message string) {
+func (cr *ChatRoom) handleBroadcast(sms string) {
 	// Parse message metadata
-	parts := strings.SplitN(message, ": ", 2)
+	parts := strings.SplitN(sms, ": ", 2)
 	from := "system"
-	actualContent := message
+	actualContent := sms
 
 	if len(parts) == 2 {
 		from = strings.Trim(parts[0], "[]")
@@ -172,7 +173,7 @@ func (cr *ChatRoom) handleBroadcast(message string) {
 
 	// Create persistent message record
 	cr.messageMu.Lock()
-	msg := Message{
+	msg := message.Message{
 		ID:        cr.nextMessageID,
 		From:      from,
 		Content:   actualContent,
@@ -198,12 +199,12 @@ func (cr *ChatRoom) handleBroadcast(message string) {
 	cr.totalMessages++
 	cr.mu.Unlock()
 
-	fmt.Printf("Broadcasting to %d clients: %s", len(clients), message)
+	fmt.Printf("Broadcasting to %d clients: %s", len(clients), sms)
 
 	// Fan-out to all clients
 	for _, client := range clients {
 		select {
-		case client.Outgoing <- message:
+		case client.Outgoing <- sms:
 			client.Mu.Lock()
 			client.MessagesSent++
 			client.Mu.Unlock()

@@ -1,6 +1,7 @@
 package chatroom
 
 import (
+	"Min/internal/message"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -50,7 +51,7 @@ func (cr *ChatRoom) recoverFromWAL(walPath string) error {
 			continue
 		}
 
-		var msg Message
+		var msg message.Message
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			fmt.Printf("Skipping corrupt line: %s\n", line)
 			continue
@@ -68,7 +69,7 @@ func (cr *ChatRoom) recoverFromWAL(walPath string) error {
 	return nil
 }
 
-func (cr *ChatRoom) persistMessage(msg Message) error {
+func (cr *ChatRoom) persistMessage(msg message.Message) error {
 	cr.walMu.Lock()
 	defer cr.walMu.Unlock()
 
