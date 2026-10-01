@@ -2,7 +2,7 @@ package chatroom
 
 import (
 	"Min/internal/client"
-	token "Min/pkg"
+	"Min/pkg/token"
 	"fmt"
 	"time"
 )
