@@ -5,6 +5,7 @@ import (
 	"Min/internal/message"
 	"Min/internal/session"
 	"Min/pkg/token"
+	"strings"
 
 	"bufio"
 	"encoding/json"
@@ -19,8 +20,8 @@ import (
 // Chat is the central coordinator
 type Chat struct {
 	// Communication channels
-	join      chan *client.Client
-	leave     chan *client.Client
+	Join      chan *client.Client
+	Leave     chan *client.Client
 	broadcast chan string
 	listUsers chan *client.Client
 
@@ -41,18 +42,18 @@ type Chat struct {
 	dataDir string
 
 	// Sessions
-	sessions   map[string]*session.Session
-	sessionsMu sync.Mutex
+	Sessions   map[string]*session.Session
+	SessionsMu sync.Mutex
 }
 
 func New(dataDir string) (*Chat, error) {
 	ch := &Chat{
 		clients:   make(map[*client.Client]bool),
-		join:      make(chan *client.Client),
-		leave:     make(chan *client.Client),
+		Join:      make(chan *client.Client),
+		Leave:     make(chan *client.Client),
 		broadcast: make(chan string),
 		listUsers: make(chan *client.Client),
-		sessions:  make(map[string]*session.Session),
+		Sessions:  make(map[string]*session.Session),
 		messages:  make([]message.Message, 0),
 		startTime: time.Now(),
 		dataDir:   dataDir,
@@ -146,16 +147,16 @@ func (ch *Chat) periodicSnapshots(duration time.Duration) {
 	}
 }
 
-func (ch *Chat) Run() {
+func (ch *Chat) Start() {
 	fmt.Println("Chat heartbeat started...")
 	go ch.cleanupInactiveClients()
 
 	for {
 		select {
-		case client := <-ch.join:
-			ch.handleJoin(client)
-		case client := <-ch.leave:
-			ch.handleLeave(client)
+		case client := <-ch.Join:
+			ch.join(client)
+		case client := <-ch.Leave:
+			ch.leave(client)
 		case message := <-ch.broadcast:
 			ch.handleBroadcast(message)
 		case client := <-ch.listUsers:
@@ -175,26 +176,26 @@ func (ch *Chat) Shutdown() {
 	fmt.Println("Shutdown complete")
 }
 
-func (ch *Chat) newSession(username string) *session.Session {
-	ch.sessionsMu.Lock()
-	defer ch.sessionsMu.Unlock()
+func (ch *Chat) NewSession(username string) *session.Session {
+	ch.SessionsMu.Lock()
+	defer ch.SessionsMu.Unlock()
 
 	tok := token.GenerateToken()
 
 	session := session.New(username, tok)
 
-	ch.sessions[username] = session
+	ch.Sessions[username] = session
 
 	fmt.Printf("Created session for %s (token: %s...)\n", username, tok[:8])
 
 	return session
 }
 
-func (ch *Chat) isValidToken(username, token string) bool {
-	ch.sessionsMu.Lock()
-	defer ch.sessionsMu.Unlock()
+func (ch *Chat) IsValidToken(username, token string) bool {
+	ch.SessionsMu.Lock()
+	defer ch.SessionsMu.Unlock()
 
-	session, exists := ch.sessions[username]
+	session, exists := ch.Sessions[username]
 	if !exists {
 		return false
 	}
@@ -204,7 +205,7 @@ func (ch *Chat) isValidToken(username, token string) bool {
 	}
 
 	if time.Since(session.LastSeen) > 1*time.Hour { // TODO config
-		delete(ch.sessions, username)
+		delete(ch.Sessions, username)
 		return false
 	}
 
@@ -213,11 +214,11 @@ func (ch *Chat) isValidToken(username, token string) bool {
 	return true
 }
 
-func (ch *Chat) updateSessionActivity(username string) {
-	ch.sessionsMu.Lock()
-	defer ch.sessionsMu.Unlock()
+func (ch *Chat) UpdateSessionActivity(username string) {
+	ch.SessionsMu.Lock()
+	defer ch.SessionsMu.Unlock()
 
-	if session, exists := ch.sessions[username]; exists {
+	if session, exists := ch.Sessions[username]; exists {
 		session.LastSeen = time.Now()
 	}
 }
@@ -252,7 +253,7 @@ func (ch *Chat) cleanupInactiveClients() {
 		ch.mu.Unlock()
 
 		for _, client := range toRemove {
-			ch.leave <- client
+			ch.Leave <- client
 		}
 	}
 }
@@ -364,4 +365,103 @@ func (ch *Chat) truncateWAL() error {
 	ch.walFile = file
 	fmt.Println("WAL truncated")
 	return nil
+}
+
+func (chatRoom *Chat) Command(client *client.Client, command string) {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return
+	}
+
+	switch parts[0] {
+	case "/users":
+		chatRoom.listUsers <- client
+	case "/stats":
+		client.Mu.Lock()
+		stats := "Your Stats:\n"
+		stats += fmt.Sprintf("  Messages sent: %d\n", client.Statistic.MessagesSent)
+		stats += fmt.Sprintf("  Messages received: %d\n", client.Statistic.MessagesRecv)
+		stats += fmt.Sprintf("  Last active: %s ago\n",
+			time.Since(client.LastActive).Round(time.Second))
+		client.Mu.Unlock()
+
+		select {
+		case client.Outgoing <- stats:
+		default:
+		}
+	case "/msg":
+		if len(parts) < 3 {
+			select {
+			case client.Outgoing <- "Usage: /msg <Name> <message>\n":
+			default:
+			}
+			return
+		}
+
+		targetName := parts[1]
+		messageText := strings.Join(parts[2:], " ")
+
+		targetClient := chatRoom.FindClientByUsername(targetName)
+		if targetClient == nil {
+			select {
+			case client.Outgoing <- fmt.Sprintf("User '%s' not found\n", targetName):
+			default:
+			}
+			return
+		}
+
+		privateMsg := fmt.Sprintf("[From %s]: %s\n", client.Name, messageText)
+		select {
+		case targetClient.Outgoing <- privateMsg:
+		default:
+			select {
+			case client.Outgoing <- fmt.Sprintf("%s's inbox is full\n", targetName):
+			default:
+			}
+			return
+		}
+
+		select {
+		case client.Outgoing <- fmt.Sprintf("Message sent to %s\n", targetName):
+		default:
+		}
+	case "/history":
+		count := 20
+		if len(parts) > 1 {
+			fmt.Sscanf(parts[1], "%d", &count)
+		}
+		if count > 100 {
+			count = 100
+		}
+		chatRoom.sendHistory(client, count)
+	case "/token":
+		chatRoom.SessionsMu.Lock()
+		session := chatRoom.Sessions[client.Name]
+		chatRoom.SessionsMu.Unlock()
+
+		if session != nil {
+			msg := "Your reconnect token:\n"
+			msg += fmt.Sprintf("   reconnect:%s:%s\n", client.Name, session.Token)
+			select {
+			case client.Outgoing <- msg:
+			default:
+			}
+		}
+	case "/quit":
+		announcement := fmt.Sprintf("%s left the chat\n", client.Name)
+		chatRoom.broadcast <- announcement
+
+		select {
+		case client.Outgoing <- "Goodbye!\n":
+		default:
+		}
+
+		time.Sleep(100 * time.Millisecond)
+		client.Conn.Close()
+	default:
+		select {
+		case client.Outgoing <- fmt.Sprintf("Unknown: %s\n", parts[0]):
+		default:
+		}
+	}
 }

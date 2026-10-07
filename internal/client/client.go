@@ -27,9 +27,19 @@ type Client struct {
 	Mu    sync.Mutex // Protects stats fields
 }
 
-func New(cfg *config.Config) *Client {
+func New(
+	cfg *config.Config,
+	conn net.Conn,
+	name, tok string,
+) *Client {
 	return &Client{
-		Config:     cfg,
+		Config: cfg,
+
+		Conn:  conn,
+		Name:  name,
+		Token: tok,
+
+		Outgoing:   make(chan string, 10), // Buffered
 		LastActive: time.Now(),
 	}
 }
@@ -43,7 +53,7 @@ func (c *Client) SetActive() {
 func (c *Client) IsActive(timeout time.Duration) bool {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
-	return time.Since(c.LastActive) > timeout
+	return time.Since(c.LastActive) < timeout
 }
 
 func (c *Client) Start() {
@@ -84,5 +94,29 @@ func (c *Client) Start() {
 		}
 
 		conn.Write([]byte(sms + "\n"))
+	}
+}
+
+func (c *Client) WriteMessages() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Panic in writeMessages for %s: %v\n", c.Name, r)
+		}
+	}()
+
+	writer := bufio.NewWriter(c.Conn)
+
+	for message := range c.Outgoing {
+		_, err := writer.WriteString(message)
+		if err != nil {
+			fmt.Printf("Write error for %s: %v\n", c.Name, err)
+			return
+		}
+
+		err = writer.Flush()
+		if err != nil {
+			fmt.Printf("Flush error for %s: %v\n", c.Name, err)
+			return
+		}
 	}
 }

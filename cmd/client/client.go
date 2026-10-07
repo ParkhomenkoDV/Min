@@ -14,6 +14,6 @@ func main() {
 	}
 
 	fmt.Println("Starting client...")
-	c := client.New(cfg)
+	c := client.Client{Config: cfg}
 	c.Start()
 }

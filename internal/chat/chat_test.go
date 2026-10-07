@@ -11,7 +11,7 @@ func TestBroadcast(t *testing.T) {
 	cr, _ := New("./testdata")
 	defer cr.Shutdown()
 
-	go cr.Run()
+	go cr.Start()
 
 	// Create mock clients
 	client1 := &client.Client{
@@ -24,8 +24,8 @@ func TestBroadcast(t *testing.T) {
 	}
 
 	// Join clients
-	cr.join <- client1
-	cr.join <- client2
+	cr.Join <- client1
+	cr.Join <- client2
 	time.Sleep(100 * time.Millisecond)
 
 	// Broadcast message
