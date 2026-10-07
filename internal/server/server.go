@@ -1,7 +1,9 @@
 package server
 
 import (
-	"Min/internal/chatroom"
+	"Min/internal/chat"
+	"Min/internal/config"
+
 	"fmt"
 	"net"
 	"os"
@@ -9,16 +11,25 @@ import (
 	"syscall"
 )
 
+const dataPath = "./data"
+
 type Server struct {
+	Config *config.Config
 }
 
-func Start(address string) {
-	chatRoom, err := chatroom.New("./data")
+func New(cfg *config.Config) *Server {
+	return &Server{
+		Config: cfg,
+	}
+}
+
+func (s *Server) Start() {
+	c, err := chat.New(dataPath)
 	if err != nil {
 		fmt.Printf("Failed to initialize: %v\n", err)
 		return
 	}
-	defer chatRoom.Shutdown()
+	defer c.Shutdown()
 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -26,20 +37,20 @@ func Start(address string) {
 	go func() {
 		<-sigChan
 		fmt.Println("\nReceived shutdown signal")
-		chatRoom.Shutdown()
+		c.Shutdown()
 		os.Exit(0)
 	}()
 
-	go chatRoom.Run()
+	go c.Run()
 
-	listener, err := net.Listen("tcp", address)
+	listener, err := net.Listen(s.Config.Network, s.Config.Address)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		return
 	}
 	defer listener.Close()
 
-	fmt.Println("Server started on :9000")
+	fmt.Printf("Server started on '%s' \n", s.Config.Address)
 
 	for {
 		conn, err := listener.Accept()
@@ -48,6 +59,6 @@ func Start(address string) {
 			continue
 		}
 		fmt.Println("New connection from:", conn.RemoteAddr())
-		go chatroom.HandleClient(conn, chatRoom)
+		go chat.Run(conn, c)
 	}
 }

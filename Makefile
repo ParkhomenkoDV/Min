@@ -13,11 +13,11 @@ build:
 
 server:
 	@echo "$(BLUE)Running server...$(RESET)"
-	go run cmd/server/server.go
+	go run cmd/server/server.go -network=tcp -address=:9000
 
 client:
 	@echo "$(BLUE)Running client...$(RESET)"
-	go run cmd/client/client.go 
+	go run cmd/client/client.go -network=tcp -address=:9000
 
 clean:
 	@echo "$(BLUE)Cleaning...$(RESET)"

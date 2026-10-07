@@ -1,6 +1,9 @@
 package client
 
 import (
+	"Min/internal/config"
+	"Min/internal/statistic"
+
 	"bufio"
 	"fmt"
 	"net"
@@ -11,17 +14,24 @@ import (
 )
 
 type Client struct {
+	Config *config.Config
+
 	Conn       net.Conn    // TCP connection
 	Name       string      // Display name
 	Outgoing   chan string // Buffered channel for writes
 	LastActive time.Time   // For idle detection
 
-	// Statistics
-	MessagesSent uint64
-	MessagesRecv uint64
+	Statistic statistic.Statistic
 
-	ReconnectToken string
-	Mu             sync.Mutex // Protects stats fields
+	Token string
+	Mu    sync.Mutex // Protects stats fields
+}
+
+func New(cfg *config.Config) *Client {
+	return &Client{
+		Config:     cfg,
+		LastActive: time.Now(),
+	}
 }
 
 func (c *Client) SetActive() {
@@ -36,8 +46,8 @@ func (c *Client) IsActive(timeout time.Duration) bool {
 	return time.Since(c.LastActive) > timeout
 }
 
-func Start(address string) {
-	conn, err := net.Dial("tcp", address)
+func (c *Client) Start() {
+	conn, err := net.Dial(c.Config.Network, c.Config.Address)
 	if err != nil {
 		fmt.Println("Error connecting:", err)
 		return
@@ -67,13 +77,12 @@ func Start(address string) {
 
 	for {
 		fmt.Print(">> ")
-		message, _ := inputReader.ReadString('\n')
-		message = strings.TrimSpace(message)
-
-		if message == "" {
+		sms, _ := inputReader.ReadString('\n')
+		sms = strings.TrimSpace(sms)
+		if sms == "" {
 			continue
 		}
 
-		conn.Write([]byte(message + "\n"))
+		conn.Write([]byte(sms + "\n"))
 	}
 }

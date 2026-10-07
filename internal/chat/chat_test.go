@@ -1,4 +1,4 @@
-package chatroom
+package chat
 
 import (
 	"Min/internal/client"
