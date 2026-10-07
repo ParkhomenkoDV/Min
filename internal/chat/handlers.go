@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func Run(conn net.Conn, c *Chat) {
+func Run(conn net.Conn, ch *Chat) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Panic in handleClient: %v\n", r)
@@ -60,7 +60,7 @@ func Run(conn net.Conn, c *Chat) {
 
 	// Validate reconnection or check for duplicate
 	if isReconnecting {
-		if c.validateReconnectToken(username, reconnectToken) {
+		if ch.isValidToken(username, reconnectToken) {
 			fmt.Printf("%s reconnected successfully\n", username)
 			conn.Write([]byte(fmt.Sprintf("Welcome back, %s!\n", username)))
 		} else {
@@ -69,15 +69,15 @@ func Run(conn net.Conn, c *Chat) {
 		}
 	} else {
 		// Prevent duplicate logins
-		if c.IsUsernameConnected(username) {
+		if ch.IsUserConnected(username) {
 			conn.Write([]byte("Name already connected. Use reconnect if you lost connection.\n"))
 			return
 		}
 
 		// Create or retrieve session
-		c.sessionsMu.Lock()
-		existingSession := c.sessions[username]
-		c.sessionsMu.Unlock()
+		ch.sessionsMu.Lock()
+		existingSession := ch.sessions[username]
+		ch.sessionsMu.Unlock()
 
 		if existingSession != nil {
 			token := existingSession.Token
@@ -85,7 +85,7 @@ func Run(conn net.Conn, c *Chat) {
 			msg += fmt.Sprintf("To reconnect: reconnect:%s:%s\n", username, token)
 			conn.Write([]byte(msg))
 		} else {
-			session := c.createSession(username)
+			session := ch.newSession(username)
 			token := session.Token
 			msg := fmt.Sprintf("Your token: %s\n", token)
 			msg += fmt.Sprintf("To reconnect: reconnect:%s:%s\n", username, token)
@@ -106,19 +106,19 @@ func Run(conn net.Conn, c *Chat) {
 	conn.SetReadDeadline(time.Time{})
 
 	// Notify chatroom
-	c.join <- client
+	ch.join <- client
 
 	// Send welcome message
 	welcomeMsg := buildWelcomeMessage(username)
 	conn.Write([]byte(welcomeMsg))
 
 	// Start read/write loops
-	go readMessages(client, c)
+	go readMessages(client, ch)
 	writeMessages(client) // Blocks until disconnect
 
 	// Update session on disconnect
-	c.updateSessionActivity(username)
-	c.leave <- client
+	ch.updateSessionActivity(username)
+	ch.leave <- client
 }
 
 func buildWelcomeMessage(name string) string {
@@ -302,16 +302,16 @@ func readMessages(client *client.Client, chatRoom *Chat) {
 	}
 }
 
-func (c *Chat) handleLeave(client *client.Client) {
-	c.mu.Lock()
-	if !c.clients[client] {
-		c.mu.Unlock()
+func (ch *Chat) handleLeave(client *client.Client) {
+	ch.mu.Lock()
+	if !ch.clients[client] {
+		ch.mu.Unlock()
 		return
 	}
-	delete(c.clients, client)
-	c.mu.Unlock()
+	delete(ch.clients, client)
+	ch.mu.Unlock()
 
-	fmt.Printf("%s left (total: %d)\n", client.Name, len(c.clients))
+	fmt.Printf("%s left (total: %d)\n", client.Name, len(ch.clients))
 
 	// Close channel safely
 	select {
@@ -322,21 +322,21 @@ func (c *Chat) handleLeave(client *client.Client) {
 	}
 
 	announcement := fmt.Sprintf("*** %s left the chat ***\n", client.Name)
-	c.handleBroadcast(announcement)
+	ch.handleBroadcast(announcement)
 }
 
-func (c *Chat) sendHistory(client *client.Client, count int) {
-	c.messageMu.Lock()
-	defer c.messageMu.Unlock()
+func (ch *Chat) sendHistory(client *client.Client, count int) {
+	ch.messageMu.Lock()
+	defer ch.messageMu.Unlock()
 
-	start := len(c.messages) - count
+	start := len(ch.messages) - count
 	if start < 0 {
 		start = 0
 	}
 
 	historyMsg := "Recent messages:\n"
-	for i := start; i < len(c.messages); i++ {
-		msg := c.messages[i]
+	for i := start; i < len(ch.messages); i++ {
+		msg := ch.messages[i]
 		historyMsg += fmt.Sprintf(" [%s]: %s\n", msg.From, msg.Content)
 	}
 
@@ -346,12 +346,12 @@ func (c *Chat) sendHistory(client *client.Client, count int) {
 	}
 }
 
-func (c *Chat) sendUserList(client *client.Client) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (ch *Chat) sendUserList(client *client.Client) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
 
 	list := "Users online:\n"
-	for c := range c.clients {
+	for c := range ch.clients {
 		status := ""
 		if c.IsActive(1 * time.Minute) {
 			status = " (idle)"
@@ -359,8 +359,8 @@ func (c *Chat) sendUserList(client *client.Client) {
 		list += fmt.Sprintf("  - %s%s\n", c.Name, status)
 	}
 
-	list += fmt.Sprintf("\nTotal messages: %d\n", c.totalMessages)
-	list += fmt.Sprintf("Uptime: %s\n", time.Since(c.startTime).Round(time.Second))
+	list += fmt.Sprintf("\nTotal messages: %d\n", ch.totalMessages)
+	list += fmt.Sprintf("Uptime: %s\n", time.Since(ch.startTime).Round(time.Second))
 
 	select {
 	case client.Outgoing <- list:
@@ -368,11 +368,11 @@ func (c *Chat) sendUserList(client *client.Client) {
 	}
 }
 
-func (c *Chat) FindClientByUsername(username string) *client.Client {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (ch *Chat) FindClientByUsername(username string) *client.Client {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
 
-	for client := range c.clients {
+	for client := range ch.clients {
 		if client.Name == username {
 			return client
 		}
@@ -380,22 +380,22 @@ func (c *Chat) FindClientByUsername(username string) *client.Client {
 	return nil
 }
 
-func (c *Chat) handleJoin(client *client.Client) {
-	c.mu.Lock()
-	c.clients[client] = true
-	c.mu.Unlock()
+func (ch *Chat) handleJoin(client *client.Client) {
+	ch.mu.Lock()
+	ch.clients[client] = true
+	ch.mu.Unlock()
 
 	client.SetActive()
 
-	fmt.Printf("%s joined (total: %d)\n", client.Name, len(c.clients))
+	fmt.Printf("%s joined (total: %d)\n", client.Name, len(ch.clients))
 
-	c.sendHistory(client, 10)
+	ch.sendHistory(client, 10)
 
 	announcement := fmt.Sprintf("*** %s joined the chat ***\n", client.Name)
-	c.handleBroadcast(announcement)
+	ch.handleBroadcast(announcement)
 }
 
-func (c *Chat) handleBroadcast(sms string) {
+func (ch *Chat) handleBroadcast(sms string) {
 	// Parse message metadata
 	parts := strings.SplitN(sms, ": ", 2)
 	from := "system"
@@ -407,31 +407,31 @@ func (c *Chat) handleBroadcast(sms string) {
 	}
 
 	// Create persistent message record
-	c.messageMu.Lock()
+	ch.messageMu.Lock()
 	msg := message.Message{
-		ID:        c.nextMessageID,
+		ID:        ch.nextMessageID,
 		From:      from,
 		Content:   actualContent,
 		Timestamp: time.Now(),
 	}
-	c.nextMessageID++
-	c.messages = append(c.messages, msg)
-	c.messageMu.Unlock()
+	ch.nextMessageID++
+	ch.messages = append(ch.messages, msg)
+	ch.messageMu.Unlock()
 
 	// Persist to WAL
-	if err := c.persistMessage(msg); err != nil {
+	if err := ch.persistMessage(msg); err != nil {
 		fmt.Printf("Failed to persist: %v\n", err)
 		// Continue anyway - availability over consistency
 	}
 
 	// Collect current clients
-	c.mu.Lock()
-	clients := make([]*client.Client, 0, len(c.clients))
-	for client := range c.clients {
+	ch.mu.Lock()
+	clients := make([]*client.Client, 0, len(ch.clients))
+	for client := range ch.clients {
 		clients = append(clients, client)
 	}
-	c.totalMessages++
-	c.mu.Unlock()
+	ch.totalMessages++
+	ch.mu.Unlock()
 
 	fmt.Printf("Broadcasting to %d clients: %s", len(clients), sms)
 

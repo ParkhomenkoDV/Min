@@ -24,12 +24,12 @@ func New(cfg *config.Config) *Server {
 }
 
 func (s *Server) Start() {
-	c, err := chat.New(dataPath)
+	ch, err := chat.New(dataPath)
 	if err != nil {
 		fmt.Printf("Failed to initialize: %v\n", err)
 		return
 	}
-	defer c.Shutdown()
+	defer ch.Shutdown()
 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -37,11 +37,11 @@ func (s *Server) Start() {
 	go func() {
 		<-sigChan
 		fmt.Println("\nReceived shutdown signal")
-		c.Shutdown()
+		ch.Shutdown()
 		os.Exit(0)
 	}()
 
-	go c.Run()
+	go ch.Run()
 
 	listener, err := net.Listen(s.Config.Network, s.Config.Address)
 	if err != nil {
@@ -59,6 +59,6 @@ func (s *Server) Start() {
 			continue
 		}
 		fmt.Println("New connection from:", conn.RemoteAddr())
-		go chat.Run(conn, c)
+		go chat.Run(conn, ch)
 	}
 }
